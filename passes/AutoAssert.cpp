@@ -1,8 +1,3 @@
- /* To do
-    getelementptr inbounds
-    sdiv,srem overflow?
- */
-
 #include "util.h"
 #include <llvm/Pass.h>
 #include <llvm/Module.h>
@@ -13,14 +8,17 @@
 
 using namespace llvm;
 using std::string;
+typedef Instruction::BinaryOps BinaryOps;
+
 namespace {
 
-const unsigned shift_opcodes[] = {Instruction::Shl, Instruction::LShr, Instruction::AShr, 0};
-const unsigned divrem_opcodes[] = {Instruction::UDiv, Instruction::URem, Instruction::SDiv, Instruction::SRem, 0};
+static const BinaryOps shift_opcodes[] = {Instruction::Shl, Instruction::LShr, Instruction::AShr, Instruction::BinaryOpsEnd};
+static const BinaryOps divrem_opcodes[] = {Instruction::UDiv, Instruction::URem,
+                                           Instruction::SDiv, Instruction::SRem, Instruction::BinaryOpsEnd};
 
-static bool opcode_in_set(unsigned opcode, const unsigned set[])
+static bool opcode_in_set(BinaryOps opcode, const BinaryOps set[])
 {
-    for (const unsigned * elem = set; *elem; elem++)
+    for (const BinaryOps * elem = set; *elem != Instruction::BinaryOpsEnd; elem++)
     {
         if (opcode == *elem)
         {
@@ -35,7 +33,7 @@ struct AutoAssertPass : ModulePass
     static char ID;
     LLVMContext & context;
     Function * assert_func;
-    Instruction * cursor;
+    BasicBlock::iterator cursor;
 
     AutoAssertPass() : ModulePass(ID), context(getGlobalContext()) {}
 
@@ -72,24 +70,32 @@ struct AutoAssertPass : ModulePass
         BinaryOperator * bin_op = dyn_cast<BinaryOperator>(inst);
         if (bin_op)
         {
+            BinaryOps opcode = bin_op->getOpcode();
+            if (opcode_in_set(opcode, shift_opcodes))
+            {
+                assertShiftInBounds(bin_op);
+            }
             if (bin_op->hasNoSignedWrap())
             {
                 assertNoSignedWrap(bin_op);
             }
-            if (opcode_in_set(bin_op->getOpcode(), shift_opcodes))
+            if (opcode_in_set(opcode, divrem_opcodes))
             {
-                assertShiftInBounds(bin_op);
-            }
-            if (opcode_in_set(bin_op->getOpcode(), divrem_opcodes))
-            {
-                assertDivNonzero(bin_op);
+                assertDivRemNonzero(bin_op);
             }
         }
     }
 
+    void assertShiftInBounds(BinaryOperator * inst)
+    {
+        IntegerType * type = cast<IntegerType>(inst->getType());
+        ConstantInt * shift_limit = ConstantInt::get(type, type->getBitWidth());
+        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_ULT, inst->getOperand(1), shift_limit));
+    }
+
     void assertNoSignedWrap(BinaryOperator * inst)
     {
-        Instruction::BinaryOps opcode = inst->getOpcode();
+        BinaryOps opcode = inst->getOpcode();
         unsigned width = cast<IntegerType>(inst->getType())->getBitWidth();
         unsigned new_width = opcode == Instruction::Add ? width + 1
                            : opcode == Instruction::Sub ? width + 1
@@ -100,18 +106,13 @@ struct AutoAssertPass : ModulePass
         SExtInst * operands[2] = { new SExtInst(inst->getOperand(0), new_type, "", cursor),
                                    new SExtInst(inst->getOperand(1), new_type, "", cursor) };
         BinaryOperator * new_op = BinaryOperator::Create(opcode, operands[0], operands[1], "", cursor);
-        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SGE, new_op, ConstantInt::get(new_type, APInt::getSignedMinValue(width))));
-        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SLE, new_op, ConstantInt::get(new_type, APInt::getSignedMaxValue(width))));
+        Constant * min_value = ConstantInt::get(new_type, APInt::getSignedMinValue(width));
+        Constant * max_value = ConstantInt::get(new_type, APInt::getSignedMaxValue(width));
+        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SGE, new_op, min_value));
+        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SLE, new_op, max_value));
     }
 
-    void assertShiftInBounds(BinaryOperator * inst)
-    {
-        IntegerType * type = cast<IntegerType>(inst->getType());
-        ConstantInt * shift_limit = ConstantInt::get(type, type->getBitWidth());
-        createAssertion(new ICmpInst(cursor, CmpInst::ICMP_ULT, inst->getOperand(1), shift_limit));
-    }
-
-    void assertDivNonzero(BinaryOperator * inst)
+    void assertDivRemNonzero(BinaryOperator * inst)
     {
         Constant * zero = ConstantInt::get(inst->getType(), 0);
         createAssertion(new ICmpInst(cursor, CmpInst::ICMP_NE, inst->getOperand(1), zero));
