@@ -8,6 +8,7 @@
 
 using namespace llvm;
 using std::string;
+typedef User::op_iterator op_iterator;
 typedef Instruction::BinaryOps BinaryOps;
 
 namespace {
@@ -141,23 +142,22 @@ struct AutoAssertPass : ModulePass
 
     void assertGetElementPtrInBounds(GetElementPtrInst * gep)
     {
-        Value * base_pointer = gep->getOperand(0);
+        Value * base_pointer = gep->getPointerOperand();
         if (isa<GlobalVariable>(base_pointer) || isa<AllocaInst>(base_pointer))
         {
-            Value * first_index = gep->getOperand(1);
-            Constant * zero = ConstantInt::get(first_index->getType(), 0);
+            Value * first_index = *gep->idx_begin();
+            Constant * zero = ConstantInt::getSigned(first_index->getType(), 0);
             createAssertion(new ICmpInst(cursor, CmpInst::ICMP_EQ, first_index, zero));
         }
-        SequentialType * type = gep->getType();
-        for (unsigned index = 2; index < gep->getNumOperands(); index++)
+        SequentialType * type = gep->getPointerOperandType();
+        for (op_iterator operand = gep->idx_begin() + 1; operand != gep->idx_end(); operand++)
         {
-            Value * operand = gep->getOperand(index);
             type = cast<SequentialType>(type->getElementType());
             unsigned size = cast<ArrayType>(type)->getNumElements();
-            Constant * zero = ConstantInt::getSigned(operand->getType(), 0);
-            Constant * index_limit = ConstantInt::getSigned(operand->getType(), size);
-            createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SGE, operand, zero));
-            createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SLT, operand, index_limit));
+            Constant * zero = ConstantInt::getSigned((*operand)->getType(), 0);
+            Constant * index_limit = ConstantInt::getSigned((*operand)->getType(), size);
+            createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SGE, *operand, zero));
+            createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SLT, *operand, index_limit));
         }
     }
 
