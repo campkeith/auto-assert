@@ -1,9 +1,6 @@
  /* To do
     getelementptr inbounds
-    Check add,sub,mul,shl nsw
-    udiv,sdiv,urem,srem by 0
     sdiv,srem overflow?
-    shl,lshr,ashr by >= bit width
  */
 
 #include "util.h"
