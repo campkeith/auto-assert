@@ -1,6 +1,7 @@
 #include "util.h"
 #include <llvm/Pass.h>
 #include <llvm/Module.h>
+#include <llvm/Operator.h>
 #include <llvm/Constants.h>
 #include <llvm/BasicBlock.h>
 #include <llvm/LLVMContext.h>
@@ -78,7 +79,7 @@ struct AutoAssertPass : ModulePass
             {
                 assertShiftInBounds(bin_op);
             }
-            if (bin_op->hasNoSignedWrap())
+            if (isa<OverflowingBinaryOperator>(bin_op) && bin_op->hasNoSignedWrap())
             {
                 assertNoSignedWrap(bin_op);
             }
@@ -117,8 +118,8 @@ struct AutoAssertPass : ModulePass
         SExtInst * operands[2] = { new SExtInst(arith->getOperand(0), new_type, "", cursor),
                                    new SExtInst(arith->getOperand(1), new_type, "", cursor) };
         BinaryOperator * new_op = BinaryOperator::Create(opcode, operands[0], operands[1], "", cursor);
-        Constant * min_value = ConstantInt::get(new_type, APInt::getSignedMinValue(width));
-        Constant * max_value = ConstantInt::get(new_type, APInt::getSignedMaxValue(width));
+        Constant * min_value = ConstantInt::get(new_type, APInt::getSignedMinValue(width).sext(new_width));
+        Constant * max_value = ConstantInt::get(new_type, APInt::getSignedMaxValue(width).sext(new_width));
         createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SGE, new_op, min_value));
         createAssertion(new ICmpInst(cursor, CmpInst::ICMP_SLE, new_op, max_value));
     }
@@ -128,7 +129,7 @@ struct AutoAssertPass : ModulePass
         Constant * zero = ConstantInt::get(divrem->getType(), 0);
         createAssertion(new ICmpInst(cursor, CmpInst::ICMP_NE, divrem->getOperand(1), zero));
     }
-    
+
     void assertNoSDivRemOverflow(BinaryOperator * sdivrem)
     {
         IntegerType * type = cast<IntegerType>(sdivrem->getType());
