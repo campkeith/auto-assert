@@ -5,7 +5,7 @@ Five kinds of checks are supported:
 
 * getelementptr bounds checking
 * add/sub/mul signed wrap checking
-* shl/ashr/shr shift bounds checking
+* shl/ashr/lshr shift bounds checking
 * sdiv/srem overflow
 * udiv/urem/sdiv/srem divide by zero
 
