@@ -3,8 +3,8 @@ LLVM pass that adds assertions to check for undefined behavior
 
 Five kinds of checks are supported:
 
-* getelementptr inbounds bounds checking
-* add/sub/mul nsw signed wrap checking
+* getelementptr bounds checking
+* add/sub/mul signed wrap checking
 * shl/ashr/shr shift bounds checking
 * sdiv/srem overflow
 * udiv/urem/sdiv/srem divide by zero
