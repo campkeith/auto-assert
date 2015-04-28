@@ -4,7 +4,7 @@ LLVM pass that adds assertions to check for undefined behavior
 Five kinds of checks are supported:
 
 * getelementptr bounds checking
-* add/sub/mul signed wrap checking
+* add/sub/mul/shl signed wrap checking
 * shl/ashr/lshr shift bounds checking
 * sdiv/srem overflow
 * udiv/urem/sdiv/srem divide by zero
