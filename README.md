@@ -1,13 +1,13 @@
 # auto-assert
 LLVM pass that adds assertions to check for undefined behavior
 
-* getelementptr,load,store null pointer check
+* getelementptr, load, store null pointer check
 * getelementptr bounds checking
-* add,sub,mul,shl unsigned/signed wrap checking
-* udiv,sdiv,lshr,ashr exact result check
-* shl,ashr,lshr shift bounds checking
-* sdiv,srem overflow
-* udiv,urem,sdiv,srem divide by zero
+* add, sub, mul, shl unsigned/signed wrap checking
+* udiv, sdiv, lshr, ashr exact result check
+* shl, ashr, lshr shift bounds checking
+* sdiv, srem overflow
+* udiv, urem, sdiv, srem divide by zero
 
 ## Usage
 
