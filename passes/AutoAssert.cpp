@@ -37,8 +37,9 @@ struct AutoAssertPass : ModulePass
     LLVMContext & context;
     Function * assert_func;
     BasicBlock::iterator cursor;
+    unsigned assert_id;
 
-    AutoAssertPass() : ModulePass(ID), context(getGlobalContext()) {}
+    AutoAssertPass() : ModulePass(ID), context(getGlobalContext()), assert_id(0) {}
 
     bool runOnModule(Module & module)
     {
@@ -49,7 +50,8 @@ struct AutoAssertPass : ModulePass
 
     void createAssertFunctionPrototype(Module * module)
     {
-        FunctionType * func_type = FunctionType::get(Type::getVoidTy(context), Type::getInt1Ty(context), false);
+        Type * args[] = { Type::getInt1Ty(context), Type::getInt32Ty(context) };
+        FunctionType * func_type = FunctionType::get(Type::getVoidTy(context), args, false);
         assert_func = cast<Function>(module->getOrInsertFunction("assert", func_type));
     }
 
@@ -164,7 +166,9 @@ struct AutoAssertPass : ModulePass
 
     void createAssertion(Value * predicate)
     {
-        CallInst::Create(assert_func, predicate, "", cursor);
+        Value * args[] = { predicate, ConstantInt::get(Type::getInt32Ty(context), assert_id) };
+        CallInst::Create(assert_func, args, "", cursor);
+        assert_id++;
     }
 };
 char AutoAssertPass::ID;

@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-void assert(bool pred)
+void assert(bool pred, int id)
 {
     if (!pred)
     {
-        printf("Assertion failure!\n");
+        printf("Assertion %d failed!\n", id);
     }
 }
