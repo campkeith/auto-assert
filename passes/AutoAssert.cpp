@@ -53,6 +53,7 @@ struct AutoAssertPass : ModulePass
         Type * args[] = { Type::getInt1Ty(context), Type::getInt32Ty(context) };
         FunctionType * func_type = FunctionType::get(Type::getVoidTy(context), args, false);
         assert_func = cast<Function>(module->getOrInsertFunction("assert", func_type));
+        assert_func->setDoesNotThrow();
     }
 
     void createAssertions(Module * module)
