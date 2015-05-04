@@ -4,6 +4,7 @@
 #include <llvm/Constants.h>
 #include <llvm/BasicBlock.h>
 #include <llvm/Instructions.h>
+#include <llvm/Support/raw_ostream.h>
 #include <set>
 
 using namespace llvm;
@@ -44,8 +45,15 @@ struct PruneAssertsPass : FunctionPass
         ConstantInt * const_pred = dyn_cast<ConstantInt>(predicate);
         if (const_pred)
         {
-            assert(const_pred->isOne());
-            delete_list.push_back(assert_call);
+            if (const_pred->isOne())
+            {
+                delete_list.push_back(assert_call);
+            }
+            else
+            {
+                ConstantInt * id = cast<ConstantInt>(assert_call->getArgOperand(1));
+                errs() << "Warning: assertion " << id->getValue() << " failed at compile time!\n";
+            }
         }
         else
         {
