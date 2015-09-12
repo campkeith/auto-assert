@@ -82,6 +82,7 @@ struct AutoAssertPass : ModulePass
             BinaryOps opcode = bin_op->getOpcode();
             /* High priority assertions. Need to insert these first to avoid
                potential undefined behavior when executing low priority assertions. */
+#ifdef CHECK_ARITHMETIC
             if (opcode_in_set(opcode, divrem_opcodes))
             {
                 assertNoDivRemByZero(bin_op);
@@ -90,11 +91,13 @@ struct AutoAssertPass : ModulePass
             {
                 assertNoSDivRemOverflow(bin_op);
             }
+#endif
             if (opcode_in_set(opcode, shift_opcodes))
             {
                 assertShiftInBounds(bin_op);
             }
             /* Low priority assertions */
+#ifdef CHECK_ARITHMETIC
             if (isa<OverflowingBinaryOperator>(bin_op))
             {
                 if (bin_op->hasNoUnsignedWrap())
@@ -110,15 +113,19 @@ struct AutoAssertPass : ModulePass
             {
                 assertExact(bin_op);
             }
+#endif
         }
         else if (gep)
         {
+#ifdef CHECK_NULL
             assertNotNull(gep->getPointerOperand());
+#endif
             if (gep->isInBounds())
             {
                 assertGetElementPtrInBounds(gep);
             }
         }
+#ifdef CHECK_NULL
         else if (load)
         {
             assertNotNull(load->getPointerOperand());
@@ -127,6 +134,7 @@ struct AutoAssertPass : ModulePass
         {
             assertNotNull(store->getPointerOperand());
         }
+#endif
     }
 
     void assertNoDivRemByZero(BinaryOperator * divrem)
